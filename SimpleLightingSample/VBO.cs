@@ -12,18 +12,15 @@ namespace SimpleLightingSample
     {
         uint _VertexVBO;
         uint _IndexVBO;
-        uint _TexCoordVBO;
         public uint _VAO;
         
         public List<Vector2> Vertices;
         public List<uint> Indices;
-        public List<Vector2> TexCoords;
 
         public void CleanLists()
         {
             Vertices = null;
             Indices = null;
-            TexCoords = null;
         }
 
         int vC;
@@ -32,7 +29,6 @@ namespace SimpleLightingSample
         {
             Vertices = new List<Vector2>();
             Indices = new List<uint>();
-            TexCoords = new List<Vector2>();
         }
 
         public bool generated = false;
@@ -43,7 +39,6 @@ namespace SimpleLightingSample
             {
                 GL.DeleteVertexArray(_VAO);
                 GL.DeleteBuffer(_VertexVBO);
-                GL.DeleteBuffer(_TexCoordVBO);
             }
         }
 
@@ -51,12 +46,10 @@ namespace SimpleLightingSample
         {
             verts = Vertices.ToArray();
             indices = Indices.ToArray();
-            texts = TexCoords.ToArray();
         }
 
         Vector2[] verts = null;
         uint[] indices = null;
-        Vector2[] texts = null;
 
         public void GenerateVBO()
         {
@@ -72,18 +65,11 @@ namespace SimpleLightingSample
             GL.BindVertexArray(0);
             Vector2[] vecs = verts == null ? Vertices.ToArray() : verts;
             uint[] inds = indices == null ? Indices.ToArray() : indices;
-            Vector2[] texs = texts == null ? TexCoords.ToArray() : texts;
             // Vertex buffer
             GL.GenBuffers(1, out _VertexVBO);
             GL.BindBuffer(BufferTarget.ArrayBuffer, _VertexVBO);
             GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(vecs.Length * Vector3.SizeInBytes),
                     vecs, BufferUsageHint.StaticDraw);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
-            // TexCoord buffer
-            GL.GenBuffers(1, out _TexCoordVBO);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, _TexCoordVBO);
-            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(texs.Length * Vector3.SizeInBytes),
-                    texs, BufferUsageHint.StaticDraw);
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
             // Index buffer
             GL.GenBuffers(1, out _IndexVBO);
@@ -96,15 +82,11 @@ namespace SimpleLightingSample
             GL.BindVertexArray(_VAO);
             GL.BindBuffer(BufferTarget.ArrayBuffer, _VertexVBO);
             GL.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, 0, 0);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, _TexCoordVBO);
-            GL.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, 0, 0);
             GL.EnableVertexAttribArray(0);
-            GL.EnableVertexAttribArray(1);
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, _IndexVBO);
             // Clean up
             GL.BindVertexArray(0);
             GL.DisableVertexAttribArray(0);
-            GL.DisableVertexAttribArray(1);
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
             generated = true;
