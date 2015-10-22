@@ -26,8 +26,7 @@ namespace SimpleLightingSample
         public static int MAX_WIDTH = ((800 / BLOCK_WIDTH) / 16) * 16;
 
         public static int MAX_HEIGHT = ((600 / BLOCK_WIDTH) / 16) * 16;
-
-
+        
         static void Main(string[] args)
         {
             Instance = new SimpleLights();
@@ -55,6 +54,22 @@ namespace SimpleLightingSample
             Blocks[BlockIndex(vec)] = (byte)mat;
         }
 
+        public int[] Light = new int[MAX_WIDTH * MAX_HEIGHT];
+
+        public Vector3B GetLightAt(Vector2 vec)
+        {
+            uint b = (uint)Light[BlockIndex(vec)];
+            byte X = (byte)(b & 255);
+            byte Y = (byte)(b & (256 * 255));
+            byte Z = (byte)(b & (256 * 256 * 255));
+            return new Vector3B() { X = X, Y = Y, Z = Z };
+        }
+
+        public void SetLightAt(Vector2 vec, Vector3B val)
+        {
+            Light[BlockIndex(vec)] = val.X + val.Y * 256 + val.Z * 256 * 256;
+        }
+
         public GameWindow Window = null;
         
         public bool InputEnabled = false;
@@ -66,6 +81,8 @@ namespace SimpleLightingSample
         public Shader ShaderObjects;
 
         public Shader ShaderBlocks;
+
+        public Shader ShaderLights;
 
         public void Run()
         {
@@ -92,6 +109,8 @@ namespace SimpleLightingSample
             ShaderObjects.Load("shader_objects");
             ShaderBlocks = new Shader();
             ShaderBlocks.Load("shader_blocks");
+            ShaderLights = new Shader();
+            ShaderLights.Load("shader_lights");
         }
 
         private void Mouse_ButtonDown(object sender, MouseButtonEventArgs e)
@@ -124,6 +143,7 @@ namespace SimpleLightingSample
                 Console.WriteLine("Generating light at " + ex + ", " + ey);
                 LightSource ls = new LightSource();
                 ls.Location = new Vector2(ex, ey);
+                ls.Color = new Vector3B((byte)Utilities.random.Next(128, 256), (byte)Utilities.random.Next(128, 256), (byte)Utilities.random.Next(128, 256));
                 Lights.Add(ls);
                 SetBlockAt(new Vector2(ex / BLOCK_WIDTH, ey / BLOCK_WIDTH), Material.LIGHT);
                 UpdateBlocks();
@@ -156,9 +176,69 @@ namespace SimpleLightingSample
             }
         }
 
+        public int LightTex = -1;
+
+        public static float LIGHT_DIMMING = 0.1f;
+
+        int c = 0;
+
+        public void PropogateLightAt(int x, int y, Vector3B ocolor, float strength)
+        {
+            c++;
+            if (strength <= 0.05)
+            {
+                return;
+            }
+            if (x < 0 || y < 0 || x >= MAX_WIDTH || y >= MAX_HEIGHT)
+            {
+                return;
+            }
+            Vector2 pos = new Vector2(x, y);
+            Material cblock = GetBlockAt(pos);
+            if (cblock == Material.AIR || cblock == Material.LIGHT)
+            {
+                Vector3B oldc = GetLightAt(pos);
+                Vector3B col = new Vector3B((byte)(ocolor.X * strength + oldc.X), (byte)(ocolor.Y * strength + oldc.Y), (byte)(ocolor.Z * strength + oldc.Z));
+                SetLightAt(pos, col);
+                PropogateLightAt(x - 1, y, ocolor, strength - LIGHT_DIMMING);
+                PropogateLightAt(x + 1, y, ocolor, strength - LIGHT_DIMMING);
+                PropogateLightAt(x, y - 1, ocolor, strength - LIGHT_DIMMING);
+                PropogateLightAt(x, y + 1, ocolor, strength - LIGHT_DIMMING);
+            }
+        }
+
         public void UpdateLights()
         {
-            // TODO
+            for (int x = 0; x < MAX_WIDTH; x++)
+            {
+                for (int y = 0; y < MAX_HEIGHT; y++)
+                {
+                    SetLightAt(new Vector2(x, y), new Vector3B(0, 0, 0));
+                }
+            }
+            c = 0;
+            for (int i = 0; i < Lights.Count; i++)
+            {
+                PropogateLightAt((int)(Lights[i].Location.X / BLOCK_WIDTH), (int)(Lights[i].Location.Y / BLOCK_WIDTH), Lights[i].Color, 1f);
+            }
+            Console.WriteLine("Updated with " + c + " block iterations!");
+            // Generate Texture
+            if (LightTex != -1)
+            {
+                GL.DeleteTexture(LightTex);
+            }
+            LightTex = GL.GenTexture();
+            GL.BindTexture(TextureTarget.Texture2D, LightTex);
+            IntPtr unmanagedPointer = Marshal.AllocHGlobal(Light.Length * 4);
+            Marshal.Copy(Light, 0, unmanagedPointer, Light.Length);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgb, MAX_WIDTH, MAX_HEIGHT, 0, PixelFormat.Rgb, PixelType.Byte, unmanagedPointer);
+            Marshal.FreeHGlobal(unmanagedPointer);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRefToTexture);
+            GL.BindTexture(TextureTarget.Texture2D, 0);
         }
 
         public int BlockTex = -1;
@@ -180,6 +260,7 @@ namespace SimpleLightingSample
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRefToTexture);
+            GL.BindTexture(TextureTarget.Texture2D, 0);
         }
 
         private void Window_UpdateFrame(object sender, FrameEventArgs e)
@@ -202,14 +283,27 @@ namespace SimpleLightingSample
             GL.UniformMatrix4(UNIF_PROJECTION, false, ref Projection);
             GL.UniformMatrix4(UNIF_MODELMATRIX, false, ref ModelMat);
             SetRenderColor(Color4.White);
-            // TODO: Render light buffer
+            // Render light buffer
+            if (LightTex != -1)
+            {
+                ShaderLights.Bind();
+                GL.UniformMatrix4(UNIF_PROJECTION, false, ref Projection);
+                GL.UniformMatrix4(UNIF_MODELMATRIX, false, ref ModelMat);
+                GL.BindTexture(TextureTarget.Texture2D, LightTex);
+                Renderer.RenderRectangle(0, 0, MAX_WIDTH * BLOCK_WIDTH, MAX_HEIGHT * BLOCK_WIDTH);
+            }
             // Render block buffer
-            ShaderBlocks.Bind();
-            GL.UniformMatrix4(UNIF_PROJECTION, false, ref Projection);
-            GL.UniformMatrix4(UNIF_MODELMATRIX, false, ref ModelMat);
-            Renderer.RenderRectangle(0, 0, MAX_WIDTH * BLOCK_WIDTH, MAX_HEIGHT * BLOCK_WIDTH);
+            if (BlockTex != -1)
+            {
+                ShaderBlocks.Bind();
+                GL.UniformMatrix4(UNIF_PROJECTION, false, ref Projection);
+                GL.UniformMatrix4(UNIF_MODELMATRIX, false, ref ModelMat);
+                GL.BindTexture(TextureTarget.Texture2D, BlockTex);
+                Renderer.RenderRectangle(0, 0, MAX_WIDTH * BLOCK_WIDTH, MAX_HEIGHT * BLOCK_WIDTH);
+            }
             // Render objects
             ShaderObjects.Bind();
+            GL.BindTexture(TextureTarget.Texture2D, 0);
             for (int i = 0; i < Lights.Count; i++)
             {
                 Vector2 pos = Lights[i].Location;

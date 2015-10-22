@@ -16,8 +16,6 @@ vec4 pickColor(float myr)
             return vec4(0.0, 0.0, 0.0, 0.0);
         case 2:
             return vec4(0.5, 0.5, 0.5, 1.0);
-        case 4:
-            return vec4(0.0, 1.0, 1.0, 1.0);
         default:
             return vec4(0.0, 0.0, 0.0, 0.0);
     }

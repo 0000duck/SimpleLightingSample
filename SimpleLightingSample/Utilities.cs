@@ -10,6 +10,8 @@ namespace SimpleLightingSample
     {
         public static double PI180 = Math.PI / 180;
 
+        public static Random random = new Random();
+
         public static float VectorToAnglesR(Vector2 input)
         {
             return (float)(Math.Atan2(input.Y, input.X) + Math.PI);
