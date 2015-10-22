@@ -6,6 +6,8 @@ using OpenTK;
 using OpenTK.Input;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL4;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace SimpleLightingSample
 {
@@ -32,7 +34,7 @@ namespace SimpleLightingSample
             Instance.Run();
         }
 
-        public Material[] Blocks = new Material[MAX_WIDTH * MAX_HEIGHT];
+        public byte[] Blocks = new byte[MAX_WIDTH * MAX_HEIGHT];
 
         public int BlockIndex(Vector2 vec)
         {
@@ -45,12 +47,12 @@ namespace SimpleLightingSample
 
         public Material GetBlockAt(Vector2 vec)
         {
-            return Blocks[BlockIndex(vec)];
+            return (Material)Blocks[BlockIndex(vec)];
         }
 
         public void SetBlockAt(Vector2 vec, Material mat)
         {
-            Blocks[BlockIndex(vec)] = mat;
+            Blocks[BlockIndex(vec)] = (byte)mat;
         }
 
         public GameWindow Window = null;
@@ -62,6 +64,8 @@ namespace SimpleLightingSample
         public RenderHelper Renderer = null;
 
         public Shader ShaderObjects;
+
+        public Shader ShaderBlocks;
 
         public void Run()
         {
@@ -81,10 +85,13 @@ namespace SimpleLightingSample
             GL.ClearColor(Color4.Black);
             GL.Disable(EnableCap.DepthTest);
             GL.Viewport(0, 0, Window.Width, Window.Height);
+            GL.ActiveTexture(TextureUnit.Texture0);
             Renderer = new RenderHelper();
             Renderer.Init();
             ShaderObjects = new Shader();
             ShaderObjects.Load("shader_objects");
+            ShaderBlocks = new Shader();
+            ShaderBlocks.Load("shader_blocks");
         }
 
         private void Mouse_ButtonDown(object sender, MouseButtonEventArgs e)
@@ -104,6 +111,7 @@ namespace SimpleLightingSample
                 }
                 Console.WriteLine("Generating stone at " + ex + ", " + ey);
                 SetBlockAt(new Vector2(ex / BLOCK_WIDTH, ey / BLOCK_WIDTH), Material.STONE);
+                UpdateBlocks();
                 UpdateLights();
             }
             if (e.Button == MouseButton.Middle)
@@ -118,6 +126,7 @@ namespace SimpleLightingSample
                 ls.Location = new Vector2(ex, ey);
                 Lights.Add(ls);
                 SetBlockAt(new Vector2(ex / BLOCK_WIDTH, ey / BLOCK_WIDTH), Material.LIGHT);
+                UpdateBlocks();
                 UpdateLights();
             }
             else if (e.Button == MouseButton.Right)
@@ -142,6 +151,7 @@ namespace SimpleLightingSample
                 }
                 Console.WriteLine("Removing block at " + ex + ", " + ey);
                 SetBlockAt(new Vector2(ex / BLOCK_WIDTH, ey / BLOCK_WIDTH), Material.AIR);
+                UpdateBlocks();
                 UpdateLights();
             }
         }
@@ -149,6 +159,27 @@ namespace SimpleLightingSample
         public void UpdateLights()
         {
             // TODO
+        }
+
+        public int BlockTex = -1;
+
+        public void UpdateBlocks()
+        {
+            if (BlockTex != -1)
+            {
+                GL.DeleteTexture(BlockTex);
+            }
+            BlockTex = GL.GenTexture();
+            GL.BindTexture(TextureTarget.Texture2D, BlockTex);
+            IntPtr unmanagedPointer = Marshal.AllocHGlobal(Blocks.Length);
+            Marshal.Copy(Blocks, 0, unmanagedPointer, Blocks.Length);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.R8, MAX_WIDTH, MAX_HEIGHT, 0, PixelFormat.Red, PixelType.Byte, unmanagedPointer);
+            Marshal.FreeHGlobal(unmanagedPointer);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRefToTexture);
         }
 
         private void Window_UpdateFrame(object sender, FrameEventArgs e)
@@ -163,6 +194,7 @@ namespace SimpleLightingSample
 
         private void Window_RenderFrame(object sender, FrameEventArgs e)
         {
+            // Setup objects / general
             ShaderObjects.Bind();
             GL.Clear(ClearBufferMask.ColorBufferBit);
             Matrix4 Projection = Matrix4.CreateOrthographicOffCenter(0, Window.Width, Window.Height, 0, -1, 1);
@@ -171,7 +203,13 @@ namespace SimpleLightingSample
             GL.UniformMatrix4(UNIF_MODELMATRIX, false, ref ModelMat);
             SetRenderColor(Color4.White);
             // TODO: Render light buffer
-            SetRenderColor(Color4.White);
+            // Render block buffer
+            ShaderBlocks.Bind();
+            GL.UniformMatrix4(UNIF_PROJECTION, false, ref Projection);
+            GL.UniformMatrix4(UNIF_MODELMATRIX, false, ref ModelMat);
+            Renderer.RenderRectangle(0, 0, MAX_WIDTH * BLOCK_WIDTH, MAX_HEIGHT * BLOCK_WIDTH);
+            // Render objects
+            ShaderObjects.Bind();
             for (int i = 0; i < Lights.Count; i++)
             {
                 Vector2 pos = Lights[i].Location;
