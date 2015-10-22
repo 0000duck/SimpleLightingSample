@@ -1,0 +1,11 @@
+obj/
+debug/
+*.suo
+*.user
+*.pdb
+*.exe
+*.pak
+x64/
+.vs/
+*.psess
+*.userprefs
