@@ -40,7 +40,7 @@ namespace SimpleLightingSample
         public void RenderLine(Vector2 start, Vector2 end)
         {
             // TODO: Efficiency!
-            float len = (float)(end - start).Length;
+            float len = (end - start).Length;
             float vecang = Utilities.VectorToAnglesR(start - end);
             Matrix4 mat = Matrix4.CreateScale(len, 1, 1)
                 * Matrix4.CreateRotationZ(vecang)
