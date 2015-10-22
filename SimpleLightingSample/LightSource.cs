@@ -11,6 +11,6 @@ namespace SimpleLightingSample
     {
         public Vector2 Location;
 
-        public Vector3B Color;
+        public Vector3 Color;
     }
 }

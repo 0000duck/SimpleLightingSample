@@ -11,10 +11,9 @@ vec4 pickColor(float myr)
     // TODO: Should this be done CPU-side?
     switch (int((myr * 256)))
     {
-        // TODO: Why must these be doubled?
         case 0:
             return vec4(0.0, 0.0, 0.0, 0.0);
-        case 2:
+        case 1:
             return vec4(0.5, 0.5, 0.5, 1.0);
         default:
             return vec4(0.0, 0.0, 0.0, 0.0);
@@ -24,4 +23,8 @@ vec4 pickColor(float myr)
 void main()
 {
     color = pickColor(texture(blocks, f_coord).r);
+    if (color.w < 0.05)
+    {
+        discard;
+    }
 }
