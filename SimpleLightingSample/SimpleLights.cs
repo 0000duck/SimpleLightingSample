@@ -208,7 +208,7 @@ namespace SimpleLightingSample
                     {
                         col /= ((col.X >= col.Y && col.X >= col.Z) ? col.X : ((col.Y >= col.Z) ? col.Y : col.Z));
                     }
-                    SetLightAt(new Vector2(x, y), new Vector3B((byte)(col.X * 256), (byte)(col.Y * 256), (byte)(col.Z * 256)));
+                    SetLightAt(new Vector2(x, y), new Vector3B((byte)(col.X * 255), (byte)(col.Y * 255), (byte)(col.Z * 255)));
                 }
             }
             // Generate Texture
@@ -260,46 +260,60 @@ namespace SimpleLightingSample
 
         private void Window_RenderFrame(object sender, FrameEventArgs e)
         {
-            // Setup objects / general
-            ShaderObjects.Bind();
-            GL.Clear(ClearBufferMask.ColorBufferBit);
-            Matrix4 Projection = Matrix4.CreateOrthographicOffCenter(0, Window.Width, Window.Height, 0, -1, 1);
-            Matrix4 ModelMat = Matrix4.Identity;
-            GL.UniformMatrix4(UNIF_PROJECTION, false, ref Projection);
-            GL.UniformMatrix4(UNIF_MODELMATRIX, false, ref ModelMat);
-            SetRenderColor(Color4.White);
-            // Render light buffer
-            if (LightTex != -1)
+            try
             {
-                ShaderLights.Bind();
+                // Setup objects / general
+                ShaderObjects.Bind();
+                GL.Clear(ClearBufferMask.ColorBufferBit);
+                Matrix4 Projection = Matrix4.CreateOrthographicOffCenter(0, Window.Width, Window.Height, 0, -1, 1);
+                Matrix4 ModelMat = Matrix4.Identity;
                 GL.UniformMatrix4(UNIF_PROJECTION, false, ref Projection);
                 GL.UniformMatrix4(UNIF_MODELMATRIX, false, ref ModelMat);
-                GL.BindTexture(TextureTarget.Texture2D, LightTex);
-                Renderer.RenderRectangle(0, 0, MAX_WIDTH * BLOCK_WIDTH, MAX_HEIGHT * BLOCK_WIDTH);
+                SetRenderColor(Color4.White);
+                // Render light buffer
+                if (LightTex != -1)
+                {
+                    ShaderLights.Bind();
+                    GL.UniformMatrix4(UNIF_PROJECTION, false, ref Projection);
+                    GL.UniformMatrix4(UNIF_MODELMATRIX, false, ref ModelMat);
+                    GL.BindTexture(TextureTarget.Texture2D, LightTex);
+                    Renderer.RenderRectangle(0, 0, MAX_WIDTH * BLOCK_WIDTH, MAX_HEIGHT * BLOCK_WIDTH);
+                }
+                // Render block buffer
+                if (BlockTex != -1)
+                {
+                    ShaderBlocks.Bind();
+                    GL.UniformMatrix4(UNIF_PROJECTION, false, ref Projection);
+                    GL.UniformMatrix4(UNIF_MODELMATRIX, false, ref ModelMat);
+                    GL.BindTexture(TextureTarget.Texture2D, BlockTex);
+                    Renderer.RenderRectangle(0, 0, MAX_WIDTH * BLOCK_WIDTH, MAX_HEIGHT * BLOCK_WIDTH);
+                }
+                // Render objects
+                ShaderObjects.Bind();
+                GL.BindTexture(TextureTarget.Texture2D, 0);
+                for (int i = 0; i < Lights.Count; i++)
+                {
+                    Vector2 pos = Lights[i].Location;
+                    Renderer.RenderLine(pos, pos + new Vector2(BLOCK_WIDTH, 0));
+                    Renderer.RenderLine(pos, pos + new Vector2(0, BLOCK_WIDTH));
+                    Renderer.RenderLine(pos + new Vector2(0, BLOCK_WIDTH), pos + new Vector2(BLOCK_WIDTH, BLOCK_WIDTH));
+                    Renderer.RenderLine(pos + new Vector2(BLOCK_WIDTH, 0), pos + new Vector2(BLOCK_WIDTH, BLOCK_WIDTH));
+                    Renderer.RenderLine(pos, pos + new Vector2(BLOCK_WIDTH, BLOCK_WIDTH));
+                    Renderer.RenderLine(pos + new Vector2(BLOCK_WIDTH, 0), pos + new Vector2(0, BLOCK_WIDTH));
+                }
+                Window.SwapBuffers();
             }
-            // Render block buffer
-            if (BlockTex != -1)
+            catch (Exception ex)
             {
-                ShaderBlocks.Bind();
-                GL.UniformMatrix4(UNIF_PROJECTION, false, ref Projection);
-                GL.UniformMatrix4(UNIF_MODELMATRIX, false, ref ModelMat);
-                GL.BindTexture(TextureTarget.Texture2D, BlockTex);
-                Renderer.RenderRectangle(0, 0, MAX_WIDTH * BLOCK_WIDTH, MAX_HEIGHT * BLOCK_WIDTH);
+                HandleException(ex);
             }
-            // Render objects
-            ShaderObjects.Bind();
-            GL.BindTexture(TextureTarget.Texture2D, 0);
-            for (int i = 0; i < Lights.Count; i++)
-            {
-                Vector2 pos = Lights[i].Location;
-                Renderer.RenderLine(pos, pos + new Vector2(BLOCK_WIDTH, 0));
-                Renderer.RenderLine(pos, pos + new Vector2(0, BLOCK_WIDTH));
-                Renderer.RenderLine(pos + new Vector2(0, BLOCK_WIDTH), pos + new Vector2(BLOCK_WIDTH, BLOCK_WIDTH));
-                Renderer.RenderLine(pos + new Vector2(BLOCK_WIDTH, 0), pos + new Vector2(BLOCK_WIDTH, BLOCK_WIDTH));
-                Renderer.RenderLine(pos, pos + new Vector2(BLOCK_WIDTH, BLOCK_WIDTH));
-                Renderer.RenderLine(pos + new Vector2(BLOCK_WIDTH, 0), pos + new Vector2(0, BLOCK_WIDTH));
-            }
-            Window.SwapBuffers();
+        }
+
+        public void HandleException(Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+            Console.WriteLine("Dying from exception!");
+            Window.Close();
         }
     }
 }
