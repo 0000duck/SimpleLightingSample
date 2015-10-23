@@ -1,13 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using OpenTK;
 using OpenTK.Input;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL4;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 
 namespace SimpleLightingSample
 {
@@ -25,6 +21,8 @@ namespace SimpleLightingSample
 
         public static int LIGHT_MODE = 1; // TODO: Non-constant!
 
+        public static float LightMult = 0.85f;
+        
         // TODO: Why is flattening x16 required?!
         public static int MAX_WIDTH = ((800 / BLOCK_WIDTH) / 16) * 16;
 
@@ -38,39 +36,39 @@ namespace SimpleLightingSample
 
         public byte[] Blocks = new byte[MAX_WIDTH * MAX_HEIGHT];
 
-        public int BlockIndex(Vector2 vec)
+        public int BlockIndex(int x, int y)
         {
-            if (vec.X < 0 || vec.Y < 0 || vec.X >= MAX_WIDTH || vec.Y >= MAX_HEIGHT)
+            if (x < 0 || y < 0 || x >= MAX_WIDTH || y >= MAX_HEIGHT)
             {
                 throw new Exception("Invalid Block location vector!");
             }
-            return (int)(vec.Y * MAX_WIDTH + vec.X);
+            return (int)(y * MAX_WIDTH + x);
         }
 
-        public Material GetBlockAt(Vector2 vec)
+        public Material GetBlockAt(int x, int y)
         {
-            return (Material)Blocks[BlockIndex(vec)];
+            return (Material)Blocks[BlockIndex(x, y)];
         }
 
-        public void SetBlockAt(Vector2 vec, Material mat)
+        public void SetBlockAt(int x, int y, Material mat)
         {
-            Blocks[BlockIndex(vec)] = (byte)mat;
+            Blocks[BlockIndex(x, y)] = (byte)mat;
         }
 
         public int[] Light = new int[MAX_WIDTH * MAX_HEIGHT];
 
-        public Vector3B GetLightAt(Vector2 vec)
+        public Vector3B GetLightAt(int x, int y)
         {
-            uint b = (uint)Light[BlockIndex(vec)];
+            uint b = (uint)Light[BlockIndex(x, y)];
             byte X = (byte)(b & 255);
             byte Y = (byte)(b & (256 * 255));
             byte Z = (byte)(b & (256 * 256 * 255));
             return new Vector3B() { X = X, Y = Y, Z = Z };
         }
 
-        public void SetLightAt(Vector2 vec, Vector3B val)
+        public void SetLightAt(int x, int y, Vector3B val)
         {
-            Light[BlockIndex(vec)] = val.X + val.Y * 256 + val.Z * 256 * 256;
+            Light[BlockIndex(x, y)] = val.X + val.Y * 256 + val.Z * 256 * 256;
         }
 
         public GameWindow Window = null;
@@ -131,19 +129,19 @@ namespace SimpleLightingSample
             }
             if (e.Button == MouseButton.Left)
             {
-                if (GetBlockAt(new Vector2(ex / BLOCK_WIDTH, ey / BLOCK_WIDTH)) != Material.AIR)
+                if (GetBlockAt(ex / BLOCK_WIDTH, ey / BLOCK_WIDTH) != Material.AIR)
                 {
                     Console.WriteLine("Refusing to place stone - block occupied!");
                     return;
                 }
                 Console.WriteLine("Generating stone at " + ex + ", " + ey);
-                SetBlockAt(new Vector2(ex / BLOCK_WIDTH, ey / BLOCK_WIDTH), Material.STONE);
+                SetBlockAt(ex / BLOCK_WIDTH, ey / BLOCK_WIDTH, Material.STONE);
                 UpdateBlocks();
                 UpdateLights();
             }
             if (e.Button == MouseButton.Middle)
             {
-                if (GetBlockAt(new Vector2(ex / BLOCK_WIDTH, ey / BLOCK_WIDTH)) != Material.AIR)
+                if (GetBlockAt(ex / BLOCK_WIDTH, ey / BLOCK_WIDTH) != Material.AIR)
                 {
                     Console.WriteLine("Refusing to place light - block occupied!");
                     return;
@@ -153,13 +151,13 @@ namespace SimpleLightingSample
                 ls.Location = new Vector2(ex, ey);
                 ls.Color = new Vector3(Utilities.random.Next(128, 256) / 256f, Utilities.random.Next(128, 256) / 256f, Utilities.random.Next(128, 256) / 256f);
                 Lights.Add(ls);
-                SetBlockAt(new Vector2(ex / BLOCK_WIDTH, ey / BLOCK_WIDTH), Material.LIGHT);
+                SetBlockAt(ex / BLOCK_WIDTH, ey / BLOCK_WIDTH, Material.LIGHT);
                 UpdateBlocks();
                 UpdateLights();
             }
             else if (e.Button == MouseButton.Right)
             {
-                Material cur = GetBlockAt(new Vector2(ex / BLOCK_WIDTH, ey / BLOCK_WIDTH));
+                Material cur = GetBlockAt(ex / BLOCK_WIDTH, ey / BLOCK_WIDTH);
                 if (cur == Material.AIR)
                 {
                     Console.WriteLine("Refusing to remove block - block unoccupied!");
@@ -178,7 +176,7 @@ namespace SimpleLightingSample
                     }
                 }
                 Console.WriteLine("Removing block at " + ex + ", " + ey);
-                SetBlockAt(new Vector2(ex / BLOCK_WIDTH, ey / BLOCK_WIDTH), Material.AIR);
+                SetBlockAt(ex / BLOCK_WIDTH, ey / BLOCK_WIDTH, Material.AIR);
                 UpdateBlocks();
                 UpdateLights();
             }
@@ -195,7 +193,7 @@ namespace SimpleLightingSample
                     {
                         for (int y = 0; y < MAX_HEIGHT; y++)
                         {
-                            Vector2 cpos = new Vector2(x * 16, y * 16);
+                            Vector2 cpos = new Vector2(x * BLOCK_WIDTH, y * BLOCK_WIDTH);
                             Vector3 col = new Vector3(0f, 0f, 0f);
                             for (int i = 0; i < Lights.Count; i++)
                             {
@@ -213,18 +211,74 @@ namespace SimpleLightingSample
                             {
                                 col /= ((col.X >= col.Y && col.X >= col.Z) ? col.X : ((col.Y >= col.Z) ? col.Y : col.Z));
                             }
-                            SetLightAt(new Vector2(x, y), new Vector3B((byte)(col.X * 255), (byte)(col.Y * 255), (byte)(col.Z * 255)));
+                            SetLightAt(x, y, new Vector3B((byte)(col.X * 255), (byte)(col.Y * 255), (byte)(col.Z * 255)));
                         }
                     }
                     break;
                 case 1:
+                    Vector3[] LightsTemp;
+                    LightsTemp = new Vector3[MAX_WIDTH * MAX_HEIGHT];
+                    for (int i = 0; i < Lights.Count; i++)
+                    {
+                        bool[] LT;
+                        Queue<LM2Node> ToLight;
+                        LT = new bool[MAX_WIDTH * MAX_HEIGHT];
+                        ToLight = new Queue<LM2Node>();
+                        LM2Node tnode = new LM2Node() {
+                            X = (int)Lights[i].Location.X / BLOCK_WIDTH,
+                            Y = (int)Lights[i].Location.Y / BLOCK_WIDTH,
+                            Col = Lights[i].Color,
+                            Div = 1
+                        };
+                        bool first = true;
+                        ToLight.Enqueue(tnode);
+                        while (ToLight.Count > 0)
+                        {
+                            LM2Node node = ToLight.Dequeue();
+                            if (node.X < 0 || node.Y < 0 || node.X >= MAX_WIDTH || node.Y >= MAX_HEIGHT)
+                            {
+                                continue;
+                            }
+                            if (node.Div < 0.01f)
+                            {
+                                continue;
+                            }
+                            if (LT[BlockIndex(node.X, node.Y)])
+                            {
+                                continue;
+                            }
+                            Material mat = GetBlockAt(node.X, node.Y);
+                            if (mat != Material.AIR)
+                            {
+                                if (mat != Material.LIGHT || !first)
+                                {
+                                    continue;
+                                }
+                                first = false;
+                            }
+                            Vector3 col = node.Col * node.Div;
+                            LightsTemp[BlockIndex(node.X, node.Y)] += col;
+                            LT[BlockIndex(node.X, node.Y)] = true;
+                            float nd = node.Div * LightMult;
+                            ToLight.Enqueue(new LM2Node() { X = node.X - 1, Y = node.Y, Col = node.Col, Div = nd });
+                            ToLight.Enqueue(new LM2Node() { X = node.X + 1, Y = node.Y, Col = node.Col, Div = nd });
+                            ToLight.Enqueue(new LM2Node() { X = node.X, Y = node.Y - 1, Col = node.Col, Div = nd });
+                            ToLight.Enqueue(new LM2Node() { X = node.X, Y = node.Y + 1, Col = node.Col, Div = nd });
+                        }
+                    }
                     for (int x = 0; x < MAX_WIDTH; x++)
                     {
                         for (int y = 0; y < MAX_HEIGHT; y++)
                         {
-                            SetLightAt(new Vector2(x, y), new Vector3B(0, 0, 0));
+                            Vector3 col = LightsTemp[BlockIndex(x, y)];
+                            if (col.X > 1f || col.Y > 1f || col.Z > 1f)
+                            {
+                                col /= ((col.X >= col.Y && col.X >= col.Z) ? col.X : ((col.Y >= col.Z) ? col.Y : col.Z));
+                            }
+                            SetLightAt(x, y, new Vector3B((byte)(col.X * 255), (byte)(col.Y * 255), (byte)(col.Z * 255)));
                         }
                     }
+                    LightsTemp = null;
                     break;
                 default:
                     throw new Exception("Invalid light_mode!");

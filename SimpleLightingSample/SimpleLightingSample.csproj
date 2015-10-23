@@ -46,6 +46,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="LightSource.cs" />
+    <Compile Include="LM2Node.cs" />
     <Compile Include="Material.cs" />
     <Compile Include="RenderHelper.cs" />
     <Compile Include="Shader.cs" />
