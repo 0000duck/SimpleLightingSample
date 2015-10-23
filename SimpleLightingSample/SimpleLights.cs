@@ -23,6 +23,8 @@ namespace SimpleLightingSample
 
         public static int BLOCK_WIDTH = 16;
 
+        public static int LIGHT_MODE = 0; // TODO: Non-constant!
+
         // TODO: Why is flattening x16 required?!
         public static int MAX_WIDTH = ((800 / BLOCK_WIDTH) / 16) * 16;
 
@@ -186,30 +188,37 @@ namespace SimpleLightingSample
         
         public void UpdateLights()
         {
-            for (int x = 0; x < MAX_WIDTH; x++)
+            switch (LIGHT_MODE)
             {
-                for (int y = 0; y < MAX_HEIGHT; y++)
-                {
-                    Vector2 cpos = new Vector2(x * 16, y * 16);
-                    Vector3 col = new Vector3(0f, 0f, 0f);
-                    for (int i = 0; i < Lights.Count; i++)
+                case 0:
+                    for (int x = 0; x < MAX_WIDTH; x++)
                     {
-                        if (cpos == Lights[i].Location)
+                        for (int y = 0; y < MAX_HEIGHT; y++)
                         {
-                            col = Lights[i].Color * 100;
-                        }
-                        else
-                        {
-                            float distsq = ((cpos - Lights[i].Location) / (BLOCK_WIDTH * 2)).LengthSquared;
-                            col += Lights[i].Color / distsq;
+                            Vector2 cpos = new Vector2(x * 16, y * 16);
+                            Vector3 col = new Vector3(0f, 0f, 0f);
+                            for (int i = 0; i < Lights.Count; i++)
+                            {
+                                if (cpos == Lights[i].Location)
+                                {
+                                    col = Lights[i].Color * 100;
+                                }
+                                else
+                                {
+                                    float distsq = ((cpos - Lights[i].Location) / (BLOCK_WIDTH * 2)).LengthSquared;
+                                    col += Lights[i].Color / distsq;
+                                }
+                            }
+                            if (col.X > 1f || col.Y > 1f || col.Z > 1f)
+                            {
+                                col /= ((col.X >= col.Y && col.X >= col.Z) ? col.X : ((col.Y >= col.Z) ? col.Y : col.Z));
+                            }
+                            SetLightAt(new Vector2(x, y), new Vector3B((byte)(col.X * 255), (byte)(col.Y * 255), (byte)(col.Z * 255)));
                         }
                     }
-                    if (col.X > 1f || col.Y > 1f || col.Z > 1f)
-                    {
-                        col /= ((col.X >= col.Y && col.X >= col.Z) ? col.X : ((col.Y >= col.Z) ? col.Y : col.Z));
-                    }
-                    SetLightAt(new Vector2(x, y), new Vector3B((byte)(col.X * 255), (byte)(col.Y * 255), (byte)(col.Z * 255)));
-                }
+                    break;
+                default:
+                    throw new Exception("Invalid light_mode!");
             }
             // Generate Texture
             if (LightTex != -1)
