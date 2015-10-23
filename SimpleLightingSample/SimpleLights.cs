@@ -23,7 +23,7 @@ namespace SimpleLightingSample
 
         public static int BLOCK_WIDTH = 16;
 
-        public static int LIGHT_MODE = 0; // TODO: Non-constant!
+        public static int LIGHT_MODE = 1; // TODO: Non-constant!
 
         // TODO: Why is flattening x16 required?!
         public static int MAX_WIDTH = ((800 / BLOCK_WIDTH) / 16) * 16;
@@ -214,6 +214,15 @@ namespace SimpleLightingSample
                                 col /= ((col.X >= col.Y && col.X >= col.Z) ? col.X : ((col.Y >= col.Z) ? col.Y : col.Z));
                             }
                             SetLightAt(new Vector2(x, y), new Vector3B((byte)(col.X * 255), (byte)(col.Y * 255), (byte)(col.Z * 255)));
+                        }
+                    }
+                    break;
+                case 1:
+                    for (int x = 0; x < MAX_WIDTH; x++)
+                    {
+                        for (int y = 0; y < MAX_HEIGHT; y++)
+                        {
+                            SetLightAt(new Vector2(x, y), new Vector3B(0, 0, 0));
                         }
                     }
                     break;
