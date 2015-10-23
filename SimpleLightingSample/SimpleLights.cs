@@ -200,7 +200,7 @@ namespace SimpleLightingSample
                         }
                         else
                         {
-                            float distsq = ((cpos - Lights[i].Location) / (16)).LengthSquared;
+                            float distsq = ((cpos - Lights[i].Location) / (BLOCK_WIDTH * 2)).LengthSquared;
                             col += Lights[i].Color / distsq;
                         }
                     }
