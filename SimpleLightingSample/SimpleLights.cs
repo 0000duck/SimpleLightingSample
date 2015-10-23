@@ -19,7 +19,7 @@ namespace SimpleLightingSample
 
         public static int BLOCK_WIDTH = 4;
 
-        public static int LIGHT_MODE = 1; // TODO: Non-constant!
+        public static int LIGHT_MODE = 2; // TODO: Non-constant!
 
         public static float LightMult = 0.95f;
         
@@ -216,69 +216,145 @@ namespace SimpleLightingSample
                     }
                     break;
                 case 1:
-                    Vector3[] LightsTemp;
-                    LightsTemp = new Vector3[MAX_WIDTH * MAX_HEIGHT];
-                    for (int i = 0; i < Lights.Count; i++)
                     {
-                        bool[] LT;
-                        Queue<LM2Node> ToLight;
-                        LT = new bool[MAX_WIDTH * MAX_HEIGHT];
-                        ToLight = new Queue<LM2Node>();
-                        LM2Node tnode = new LM2Node() {
-                            X = (int)Lights[i].Location.X / BLOCK_WIDTH,
-                            Y = (int)Lights[i].Location.Y / BLOCK_WIDTH,
-                            Col = Lights[i].Color,
-                            Div = 1
-                        };
-                        bool first = true;
-                        ToLight.Enqueue(tnode);
-                        while (ToLight.Count > 0)
+                        Vector3[] LightsTemp;
+                        LightsTemp = new Vector3[MAX_WIDTH * MAX_HEIGHT];
+                        for (int i = 0; i < Lights.Count; i++)
                         {
-                            LM2Node node = ToLight.Dequeue();
-                            if (node.X < 0 || node.Y < 0 || node.X >= MAX_WIDTH || node.Y >= MAX_HEIGHT)
+                            bool[] LT;
+                            Queue<LM2Node> ToLight;
+                            LT = new bool[MAX_WIDTH * MAX_HEIGHT];
+                            ToLight = new Queue<LM2Node>();
+                            LM2Node tnode = new LM2Node()
                             {
-                                continue;
-                            }
-                            if (node.Div < 0.01f)
+                                X = (int)Lights[i].Location.X / BLOCK_WIDTH,
+                                Y = (int)Lights[i].Location.Y / BLOCK_WIDTH,
+                                Col = Lights[i].Color,
+                                Div = 1
+                            };
+                            bool first = true;
+                            ToLight.Enqueue(tnode);
+                            while (ToLight.Count > 0)
                             {
-                                continue;
-                            }
-                            if (LT[BlockIndex(node.X, node.Y)])
-                            {
-                                continue;
-                            }
-                            Material mat = GetBlockAt(node.X, node.Y);
-                            if (mat != Material.AIR)
-                            {
-                                if (mat != Material.LIGHT || !first)
+                                LM2Node node = ToLight.Dequeue();
+                                if (node.X < 0 || node.Y < 0 || node.X >= MAX_WIDTH || node.Y >= MAX_HEIGHT)
                                 {
                                     continue;
                                 }
-                                first = false;
+                                if (node.Div < 0.01f)
+                                {
+                                    continue;
+                                }
+                                if (LT[BlockIndex(node.X, node.Y)])
+                                {
+                                    continue;
+                                }
+                                Material mat = GetBlockAt(node.X, node.Y);
+                                if (mat != Material.AIR)
+                                {
+                                    if (mat != Material.LIGHT || !first)
+                                    {
+                                        continue;
+                                    }
+                                    first = false;
+                                }
+                                Vector3 col = node.Col * node.Div;
+                                LightsTemp[BlockIndex(node.X, node.Y)] += col;
+                                LT[BlockIndex(node.X, node.Y)] = true;
+                                float nd = node.Div * LightMult;
+                                ToLight.Enqueue(new LM2Node() { X = node.X - 1, Y = node.Y, Col = node.Col, Div = nd });
+                                ToLight.Enqueue(new LM2Node() { X = node.X + 1, Y = node.Y, Col = node.Col, Div = nd });
+                                ToLight.Enqueue(new LM2Node() { X = node.X, Y = node.Y - 1, Col = node.Col, Div = nd });
+                                ToLight.Enqueue(new LM2Node() { X = node.X, Y = node.Y + 1, Col = node.Col, Div = nd });
                             }
-                            Vector3 col = node.Col * node.Div;
-                            LightsTemp[BlockIndex(node.X, node.Y)] += col;
-                            LT[BlockIndex(node.X, node.Y)] = true;
-                            float nd = node.Div * LightMult;
-                            ToLight.Enqueue(new LM2Node() { X = node.X - 1, Y = node.Y, Col = node.Col, Div = nd });
-                            ToLight.Enqueue(new LM2Node() { X = node.X + 1, Y = node.Y, Col = node.Col, Div = nd });
-                            ToLight.Enqueue(new LM2Node() { X = node.X, Y = node.Y - 1, Col = node.Col, Div = nd });
-                            ToLight.Enqueue(new LM2Node() { X = node.X, Y = node.Y + 1, Col = node.Col, Div = nd });
                         }
-                    }
-                    for (int x = 0; x < MAX_WIDTH; x++)
-                    {
-                        for (int y = 0; y < MAX_HEIGHT; y++)
+                        for (int x = 0; x < MAX_WIDTH; x++)
                         {
-                            Vector3 col = LightsTemp[BlockIndex(x, y)];
-                            if (col.X > 1f || col.Y > 1f || col.Z > 1f)
+                            for (int y = 0; y < MAX_HEIGHT; y++)
                             {
-                                col /= ((col.X >= col.Y && col.X >= col.Z) ? col.X : ((col.Y >= col.Z) ? col.Y : col.Z));
+                                Vector3 col = LightsTemp[BlockIndex(x, y)];
+                                if (col.X > 1f || col.Y > 1f || col.Z > 1f)
+                                {
+                                    col /= ((col.X >= col.Y && col.X >= col.Z) ? col.X : ((col.Y >= col.Z) ? col.Y : col.Z));
+                                }
+                                SetLightAt(x, y, new Vector3B((byte)(col.X * 255), (byte)(col.Y * 255), (byte)(col.Z * 255)));
                             }
-                            SetLightAt(x, y, new Vector3B((byte)(col.X * 255), (byte)(col.Y * 255), (byte)(col.Z * 255)));
+                        }
+                        break;
+                    }
+                case 2:
+                    {
+                        Vector3[] LightsTemp;
+                        LightsTemp = new Vector3[MAX_WIDTH * MAX_HEIGHT];
+                        for (int i = 0; i < Lights.Count; i++)
+                        {
+                            bool[] LT;
+                            Queue<LM2Node> ToLight;
+                            LT = new bool[MAX_WIDTH * MAX_HEIGHT];
+                            ToLight = new Queue<LM2Node>();
+                            LM2Node tnode = new LM2Node()
+                            {
+                                X = (int)Lights[i].Location.X / BLOCK_WIDTH,
+                                Y = (int)Lights[i].Location.Y / BLOCK_WIDTH,
+                                Col = Lights[i].Color,
+                                Div = 1f
+                            };
+                            float lx = (int)Lights[i].Location.X / BLOCK_WIDTH;
+                            float ly = (int)Lights[i].Location.Y / BLOCK_WIDTH;
+                            bool first = true;
+                            ToLight.Enqueue(tnode);
+                            while (ToLight.Count > 0)
+                            {
+                                LM2Node node = ToLight.Dequeue();
+                                if (node.X < 0 || node.Y < 0 || node.X >= MAX_WIDTH || node.Y >= MAX_HEIGHT)
+                                {
+                                    continue;
+                                }
+                                if (node.Div < 0.01f)
+                                {
+                                    continue;
+                                }
+                                if (LT[BlockIndex(node.X, node.Y)])
+                                {
+                                    continue;
+                                }
+                                Material mat = GetBlockAt(node.X, node.Y);
+                                if (mat != Material.AIR)
+                                {
+                                    if (mat != Material.LIGHT || !first)
+                                    {
+                                        continue;
+                                    }
+                                    first = false;
+                                }
+                                Vector3 col = node.Col * node.Div;
+                                LightsTemp[BlockIndex(node.X, node.Y)] += col;
+                                LT[BlockIndex(node.X, node.Y)] = true;
+                                float nd = node.Div * LightMult;
+                                ToLight.Enqueue(new LM2Node() { X = node.X - 1, Y = node.Y, Col = node.Col, Div = nd });
+                                ToLight.Enqueue(new LM2Node() { X = node.X + 1, Y = node.Y, Col = node.Col, Div = nd });
+                                ToLight.Enqueue(new LM2Node() { X = node.X, Y = node.Y - 1, Col = node.Col, Div = nd });
+                                ToLight.Enqueue(new LM2Node() { X = node.X, Y = node.Y + 1, Col = node.Col, Div = nd });
+                                float diag = nd * 0.975f;
+                                ToLight.Enqueue(new LM2Node() { X = node.X - 1, Y = node.Y - 1, Col = node.Col, Div = diag });
+                                ToLight.Enqueue(new LM2Node() { X = node.X - 1, Y = node.Y + 1, Col = node.Col, Div = diag });
+                                ToLight.Enqueue(new LM2Node() { X = node.X + 1, Y = node.Y - 1, Col = node.Col, Div = diag });
+                                ToLight.Enqueue(new LM2Node() { X = node.X + 1, Y = node.Y + 1, Col = node.Col, Div = diag });
+                            }
+                        }
+                        for (int x = 0; x < MAX_WIDTH; x++)
+                        {
+                            for (int y = 0; y < MAX_HEIGHT; y++)
+                            {
+                                Vector3 col = LightsTemp[BlockIndex(x, y)];
+                                if (col.X > 1f || col.Y > 1f || col.Z > 1f)
+                                {
+                                    col /= ((col.X >= col.Y && col.X >= col.Z) ? col.X : ((col.Y >= col.Z) ? col.Y : col.Z));
+                                }
+                                SetLightAt(x, y, new Vector3B((byte)(col.X * 255), (byte)(col.Y * 255), (byte)(col.Z * 255)));
+                            }
                         }
                     }
-                    LightsTemp = null;
                     break;
                 default:
                     throw new Exception("Invalid light_mode!");
