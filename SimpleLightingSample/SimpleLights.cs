@@ -17,16 +17,16 @@ namespace SimpleLightingSample
 
         public static int UNIF_COLOR = 3;
 
-        public static int BLOCK_WIDTH = 16;
+        public static int BLOCK_WIDTH = 4;
 
         public static int LIGHT_MODE = 1; // TODO: Non-constant!
 
-        public static float LightMult = 0.85f;
+        public static float LightMult = 0.95f;
         
         // TODO: Why is flattening x16 required?!
         public static int MAX_WIDTH = ((800 / BLOCK_WIDTH) / 16) * 16;
 
-        public static int MAX_HEIGHT = ((600 / BLOCK_WIDTH) / 16)* 16;
+        public static int MAX_HEIGHT = ((600 / BLOCK_WIDTH) / 16) * 16;
         
         static void Main(string[] args)
         {
